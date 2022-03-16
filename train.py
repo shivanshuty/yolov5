@@ -414,25 +414,20 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             callbacks.run('on_fit_epoch_end', log_vals, epoch, best_fitness, fi)
 
             # Save model
-            if (not nosave) or (final_epoch and not evolve):  # if save
-                if not opt.qat:
-                    ckpt = {'epoch': epoch,
-                            'best_fitness': best_fitness,
-                            'model': deepcopy(de_parallel(model)).half(),
-                            'ema': deepcopy(ema.ema).half(),
-                            'updates': ema.updates,
-                            'optimizer': optimizer.state_dict(),
-                            'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None,
-                            'date': datetime.now().isoformat()}
+            save = (not opt.nosave) or (final_epoch and not opt.evolve)
+            if save:
+                ckpt = {'epoch': epoch,
+                        'best_fitness': best_fitness,
+                        'nc': len(data_dict['names']),
+                        'labels': data_dict['names'],
+                        'model': ema.ema.state_dict()}
 
                 # Save last, best and delete
-                    torch.save(ckpt, last)
-                    if best_fitness == fi:
-                        torch.save(ckpt, best)
-                    if (epoch > 0) and (opt.save_period > 0) and (epoch % opt.save_period == 0):
-                        torch.save(ckpt, w / f'epoch{epoch}.pt')
-                    del ckpt
-                    callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
+                torch.save(ckpt, last)
+                #torch.save(ckpt, last)
+                if best_fitness == fi:
+                    torch.save(ckpt, best)
+                del ckpt
 
             # Stop Single-GPU
             if RANK == -1 and stopper(epoch=epoch, fitness=fi):
